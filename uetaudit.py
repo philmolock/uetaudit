@@ -111,7 +111,7 @@ def crawlLinkQueue():
             proxy.new_har(link)
             print(f"Crawling... {link}")
             browser.get(link)
-            # time.sleep(settings['waitTimePerPage'])
+            time.sleep(settings['waitTimePerPage'])
             links = browser.find_elements_by_xpath("//a[@href]")
             harDict[link] = []
             for entry in proxy.har['log']['entries']:
@@ -131,7 +131,7 @@ def crawlLinkQueue():
                 proxy.new_har(link)
                 print(f"Crawling... {link}")
                 browser.get(link)
-                # time.sleep(settings['waitTimePerPage'])
+                time.sleep(settings['waitTimePerPage'])
                 links = browser.find_elements_by_xpath("//a[@href]")
                 harDict[link] = []
                 for entry in proxy.har['log']['entries']:

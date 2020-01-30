@@ -195,7 +195,7 @@ def createUetOpportunity(harAnalysis, httpRespStatusCode):
     gc = harAnalysis['goalCurrency']
     pageType = harAnalysis['pageType']
     prodId = harAnalysis['prodId']
-    print(f"prodId: {prodId}")
+    
 
     # Check if bat.bing responded with HTTP Status Code not in the 200s
     if httpRespStatusCode not in range(200,299):
@@ -240,7 +240,6 @@ def validateProdId(prodId):
 def analyzeHarDict(harDict):
     reportResults = [['Page','TagId','Event Type','Query String Details','HTTP Response Code','Opportunity'],]
     for page, entries in harDict.items():
-        print(f"{page} \t len of entries: {len(entries)}")
         pageLoadDetected = False
         if len(entries) == 0:
             # no UET detected on this page

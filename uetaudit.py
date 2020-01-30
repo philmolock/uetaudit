@@ -1,5 +1,6 @@
 # Automated UET Audit
 # Version 0.1 (1/30/2020)
+# Phillip Molock | phmolock@microsoft.com
 # For a list of commands  to use with this script type python uetaudit.py --options 
 
 # To do

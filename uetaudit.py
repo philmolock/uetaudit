@@ -297,7 +297,9 @@ def createOutput(reportResults):
     except:
         pass
     customerName = urlparse(settings['homepage']).netloc.replace('.',' ')
-    with open(f"{settings['outputDirectory']}/UET Audit {customerName} {randint(0,10000)}.csv", 'w', newline='') as csvOut:
+    fileName = f"{settings['outputDirectory']}/UET Audit {customerName} {randint(0,10000)}.csv"
+    print(f"Writing report... {fileName}")
+    with open(fileName, 'w', newline='') as csvOut:
         csvWriter = csv.writer(csvOut, delimiter=',')
         for row in reportResults:
             csvWriter.writerow(row)
@@ -307,6 +309,7 @@ def main():
     harDict = crawlLinkQueue()
     reportResults = analyzeHarDict(harDict)
     createOutput(reportResults)
+    print(f"Finished. Please check {settings['outputDirectory']} for your results.")
 
             
             

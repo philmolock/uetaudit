@@ -1,3 +1,7 @@
+# Automated UET Audit
+# Version 0.1 (1/30/2020)
+# For a list of commands  to use with this script type python uetaudit.py --options 
+
 # To do
 # 4. Find a way to disable the crawling functionality 
 # 5. Build out documentation 
@@ -57,7 +61,7 @@ def mergeSettings():
         printOptions()
         quit()
 
-    print(f"--UET Automated Audit--\n\tVersion:{settings['version']}\n\n--Audit Details--\n\tAdvertiser Homepage: {settings['homepage']}\n\tPages to Crawl: {settings['pagesToCrawl']}\n\tText File: {settings['txtFileLocation']}\n\tRequired Pages: {settings['requiredPagesToCrawl']}\n\tOutput to Email: {settings['outputToEmail?']}")
+    print(f"--UET Automated Audit--\n\tVersion:{settings['version']} (1/30/2020)\n\tFor a list of options: python uetaudit.py --options\n\n--Audit Details--\n\tAdvertiser Homepage: {settings['homepage']}\n\tPages to Crawl: {settings['pagesToCrawl']}\n\tText File: {settings['txtFileLocation']}\n\tRequired Pages: {settings['requiredPagesToCrawl']}\n\tOutput to Email: {settings['outputToEmail?']}")
 
 def printOptions():
     print(f"--Command Options--\n\t--homepage\tSpecify URL of homepage you'd like to audit\n\t--pagecount\tThe number of pages you'd like to randomly crawl (above and beyond the homepage or pages you've specified in a txt file)\n\t--file\t\tThe location of a txt file containing URLs to crawl\n\t--email\t\tEnable/disable results in email format (True/False)\n\t--options\tList available command options")
@@ -179,7 +183,7 @@ def analyzeQueryString(queryStrings):
             queryStringAnalysis['pageType'] = queryString['value']
         elif queryString['name'] == 'prodid':
             queryStringAnalysis['prodId'] = queryString['value']
-            print(queryStringAnalysis['prodId'])
+            
 
     return queryStringAnalysis
 

@@ -36,20 +36,11 @@ def mergeSettings():
     for opt in opts:
         if opt[0] == '--homepage':
             parsedUrl = urlparse(opt[1])
-            # netlocRegex = re.search("\.")
             if parsedUrl.scheme != '' and parsedUrl.netloc != '' and re.match('.*\..*\..*', parsedUrl.netloc):
                 settings['homepage'] = opt[1]
-        elif opt[0] == '--spider':
-            if opt[1].lower() == 'true' or opt[1].lower() == 'yes':
-                settings['spider?'] = True
-            elif opt[1].lower() == 'false' or opt[1].lower() == 'no':
-                settings['spider?'] = False
-        elif opt[0] == '--time':
-            settings['time'] = int(opt[1])
         elif opt[0] == '--pagecount':
             settings['pagesToCrawl'] = int(opt[1])
         elif opt[0] == '--file':
-            settings['readURLsFromTxtFile?'] = True
             settings['txtFileLocation'] = opt[1]
             settings['requiredPagesToCrawl'] = readPagesFromText(settings['txtFileLocation'])
         elif opt[0] == '--email':
@@ -66,10 +57,10 @@ def mergeSettings():
         printOptions()
         quit()
 
-    print(f"--UET Automated Audit--\n\tVersion:{settings['version']}\n\n--Audit Details--\n\tAdvertiser Homepage: {settings['homepage']}\n\tWait Time Per Page: {settings['waitTimePerPage']}sec\n\tPages to Crawl: {settings['pagesToCrawl']}\n\tSpider Random Pages: {settings['spider?']}\n\tRead Pages from Text File: {settings['readURLsFromTxtFile?']}\n\tText File: {settings['txtFileLocation']}\n\tRequired Pages: {settings['requiredPagesToCrawl']}\n\tOutput to Email: {settings['outputToEmail?']}")
+    print(f"--UET Automated Audit--\n\tVersion:{settings['version']}\n\n--Audit Details--\n\tAdvertiser Homepage: {settings['homepage']}\n\tPages to Crawl: {settings['pagesToCrawl']}\n\tText File: {settings['txtFileLocation']}\n\tRequired Pages: {settings['requiredPagesToCrawl']}\n\tOutput to Email: {settings['outputToEmail?']}")
 
 def printOptions():
-    print(f"--Command Options--\n\t--homepage\tSpecify URL of homepage you'd like to audit\n\t--pagecount\tThe number of pages you'd like to randomly crawl\n\t--time\t\tThe time to wait per page in seconds\n\t--file\t\tThe location of a txt file containing URLs to crawl\n\t--spider\tEnable/disable random spidering (True/False)\n\t--email\t\tEnable/disable results in email format (True/False)\n\t--options\tList available command options")
+    print(f"--Command Options--\n\t--homepage\tSpecify URL of homepage you'd like to audit\n\t--pagecount\tThe number of pages you'd like to randomly crawl (above and beyond the homepage or pages you've specified in a txt file)\n\t--file\t\tThe location of a txt file containing URLs to crawl\n\t--email\t\tEnable/disable results in email format (True/False)\n\t--options\tList available command options")
 
 def verifyHref(href, linksHistory, newLinks):
     hrefNetloc = urlparse(href).netloc
@@ -134,6 +125,7 @@ def crawlLinkQueue():
         if len(linksHistory) == settings['pagesToCrawl']:
             return harDict
         else:
+            shuffle(linksQueue)
             link = linksQueue[0]
             if link not in linksHistory:
                 proxy.new_har(link)
@@ -146,8 +138,10 @@ def crawlLinkQueue():
                     if 'bat.bing.com/action' in entry['request']['url']:
                         harDict[link].append(entry)
                 newLinks = getNewLinks(links, linksHistory)
+                del(linksQueue[0])
                 linksQueue.extend(newLinks)
                 linksHistory.append(link)
+                
                 
 
 def analyzeQueryString(queryStrings):

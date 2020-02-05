@@ -38,9 +38,15 @@ def mergeSettings():
         specificOption = option[0]
         choice = option[1]
         if specificOption == '--homepage':
-            parsedHomepageUrl = urlparse(choice)
-            if parsedHomepageUrl.scheme != '' and parsedHomepageUrl.netloc != '' and re.match('.*\..*\..*', parsedHomepageUrl.netloc):
-                settings['homepage'] = choice
+            # Verify the homepage provided at a minimum follows a basic URL Structure
+            if re.match('(https://|http://).*\..*\..*',choice):
+                parsedHomepageUrl = urlparse(choice)
+                if parsedHomepageUrl.scheme != '' and parsedHomepageUrl.netloc != '' and re.match('.*\..*\..*', parsedHomepageUrl.netloc):
+                    settings['homepage'] = choice
+            else:
+                print(f"\n--Error Starting the Script--\n[Error] The homepage provided is not in proper format https://www.bing.com\n\t[Example Command | Just a homepage]\tpython uetaudit.py --homepage https://www.bing.com\n\t[Example Command | Just a txt file]\tpython uetaudit.py --file urls.txt\n\t[Example Command | Homepage and txt file]\tpython uetaudit.py --homepage https://www.bing.com --file urls.txt\n")    
+                printOptions()
+
         elif specificOption == '--pagecount':
             try:
                 settings['pagesToCrawl'] = int(choice)
@@ -102,6 +108,7 @@ def getNewLinks(links, linksHistory):
     
     for link in links:
         href = link.get_attribute("href")
+        # print(f"Verifying {href}.. {verifyHref(href, linksHistory, newLinks)}")
         if verifyHref(href, linksHistory, newLinks):
             newLinks.append(href)
     
@@ -127,7 +134,7 @@ def getRequiredLinkQueue():
     elif not settings['homepage'] and settings['requiredPagesToCrawl']:
        return settings['requiredPagesToCrawl']
     else:
-        return [settings['homepage']] + settings['requiredPageToCrawl']
+        return [settings['homepage']] + settings['requiredPagesToCrawl']
 
 def crawlLinkQueue():
     try:
@@ -152,7 +159,7 @@ def crawlLinkQueue():
     for link in requiredLinksQueue:
         if link not in linksHistory:
             proxy.new_har(link)
-            print(f"Crawling... {link}")
+            print(f"\t[{len(linksHistory) + 1}] Crawling... {link}")
             try:
                 browser.get(link)
             except Exception as e:
@@ -181,7 +188,7 @@ def crawlLinkQueue():
             link = linksQueue[0]
             if link not in linksHistory:
                 proxy.new_har(link)
-                print(f"Crawling... {link}")
+                print(f"\t[{len(linksHistory) + 1}] Crawling... {link}")
                 try:
                     browser.get(link)
                 except Exception as e:

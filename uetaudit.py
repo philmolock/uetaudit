@@ -1,5 +1,5 @@
 # Automated UET Audit
-# Version 1.01 (02/05/2020)
+# Version 1.1 (02/05/2020)
 # Phillip Molock | phmolock@microsoft.com
 # For a list of commands  to use with this script type python uetaudit.py --options 
 
@@ -19,8 +19,8 @@ settings = {
     'txtFileLocation': None,
     'outputDirectory': 'output',
     'customer': None,
-    'version': 1.01,
-    'versionDate':'02/04/2020'
+    'version': 1.1,
+    'versionDate':'02/05/2020'
 }
 
 # Merge the arguments received from command line with script settings

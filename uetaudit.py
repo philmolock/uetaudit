@@ -1,5 +1,5 @@
 # Automated UET Audit
-# Version 1.0 (02/04/2020)
+# Version 1.01 (02/05/2020)
 # Phillip Molock | phmolock@microsoft.com
 # For a list of commands  to use with this script type python uetaudit.py --options 
 
@@ -19,7 +19,7 @@ settings = {
     'txtFileLocation': None,
     'outputDirectory': 'output',
     'customer': None,
-    'version': 1.0,
+    'version': 1.01,
     'versionDate':'02/04/2020'
 }
 
@@ -299,63 +299,6 @@ def validateProdId(prodId):
             invalidProdIds.append(prodIdToCheck)
     return set(invalidProdIds)
 
-
-# Build out reportResults
-def analyzeHarDict1(harDict):
-    reportResults = [['Page','TagId','Event Type','Query String Details','HTTP Response Code','Opportunity'],]
-    for page, entries in harDict.items():
-        pageLoadDetected = False
-        # no UET detected on this page
-        if len(entries) == 0:
-            
-            newReportRow = [
-                page,
-                '',
-                '',
-                '',
-                'No UET tags detected. Please insure UET is properly placed on every page.'
-            ]
-            reportResults.append(newReportRow)
-
-        for entry in entries:
-            harAnalysis = analyzeQueryString(entry['request']['queryString'])
-            evt = harAnalysis['eventType']
-            ti = harAnalysis['tagId']
-            ec = harAnalysis['eventCategory']
-            el = harAnalysis['eventLabel']
-            ea = harAnalysis['eventAction']
-            ev = harAnalysis['eventValue']
-            gv = harAnalysis['goalValue']
-            gc = harAnalysis['goalCurrency']
-            pageType = harAnalysis['pageType']
-            prodId = harAnalysis['prodId']
-            httpRespStatusCode = entry['response']['status']
-
-            if evt == 'pageLoad':
-                pageLoadDetected = True 
-            
-            newReportRow = [
-                page,
-                ti, 
-                evt,
-                f"{'ea='+ ea + ' ' if ea else ''}{'ev=' + ev + ' ' if ev else ''}{'ec=' + ec + ' ' if ec else ''}{'el=' + el + ' ' if el else ''}{'gv=' + gv + ' ' if gv else ''}{'gc=' + gc + ' ' if gc else ''}{'pagetype=' + pageType + ' ' if pageType else ''}{'prodid=' + prodId + ' ' if prodId else ''}",
-                httpRespStatusCode,
-                createUetOpportunity(harAnalysis, entry['response']['status'])
-            ]
-            reportResults.append(newReportRow)
-        
-        if not pageLoadDetected and len(entries) > 0:
-            newReportRow = [
-                page,
-                '',
-                '',
-                '',
-                'No UET pageLoad tag detected. Please insure UET is properly placed on every page.'
-            ]
-            reportResults.append(newReportRow)
-            
-    return reportResults
-
 # Build out reportResults
 def analyzeHarDict(harDict):
     reportResults = [['Page','TagId','Event Type','Query String Details','HTTP Response Code','Opportunity'],]
@@ -366,6 +309,7 @@ def analyzeHarDict(harDict):
             
             newReportRow = [
                 page,
+                '',
                 '',
                 '',
                 '',
@@ -403,6 +347,7 @@ def analyzeHarDict(harDict):
         if not pageLoadDetected and len(entries) > 0:
             newReportRow = [
                 page,
+                '',
                 '',
                 '',
                 '',

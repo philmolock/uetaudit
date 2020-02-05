@@ -19,7 +19,7 @@ settings = {
     'txtFileLocation': None,
     'outputDirectory': 'output',
     'customer': None,
-    'version': 0.2,
+    'version': 1.0,
     'versionDate':'02/04/2020'
 }
 

@@ -168,6 +168,10 @@ def crawlLinkQueue():
             linksQueue.extend(newLinks)
             linksHistory.append(link)
     
+    # If you only provided a text file and no homepage, the links queue will be zero and we can return the current harDict
+    if len(linksQueue) == 0:
+        return harDict
+
     # Randomly crawl through the linksQueue (while adding new links to it) until you've hit the pagecount required 
     while True:
         if len(linksHistory) == settings['pagesToCrawl']:

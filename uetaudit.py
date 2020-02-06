@@ -1,7 +1,11 @@
 # Automated UET Audit
-# Version 1.1 (02/05/2020)
+# Version 1.11 (02/06/2020)
 # Phillip Molock | phmolock@microsoft.com
 # For a list of commands  to use with this script type python uetaudit.py --options 
+
+# To do 
+# 1. Factor in robots.txt 
+# 2. Factor in sitemap.xml
 
 from selenium import webdriver
 from browsermobproxy import Server
@@ -19,8 +23,8 @@ settings = {
     'txtFileLocation': None,
     'outputDirectory': 'output',
     'customer': None,
-    'version': 1.1,
-    'versionDate':'02/05/2020'
+    'version': 1.11,
+    'versionDate':'02/06/2020'
 }
 
 # Merge the arguments received from command line with script settings
@@ -96,7 +100,7 @@ def printOptions():
 def verifyHref(href, linksHistory, newLinks):
     hrefNetloc = urlparse(href).netloc
     homePageNetloc = urlparse(settings['homepage']).netloc
-    if hrefNetloc == homePageNetloc and href not in linksHistory and href != settings['homepage'] and href not in newLinks and not re.match('.*(/help|/login|/faq|/contact|/contactus|/customerservice|/customer-service|/account)', href):
+    if hrefNetloc == homePageNetloc and href not in set(linksHistory) and href != settings['homepage'] and href not in set(newLinks) and not re.match('.*(/help|/login|/faq|/contact|/contactus|/customerservice|/customer-service|/account)', href) and href != f"{settings['homepage']}/":
         return True
     else:
         return False
@@ -116,7 +120,7 @@ def getNewLinks(links, linksHistory):
         shuffle(newLinks)
         for link in newLinks:
             if len(randomLinks) < 3:
-                if link not in randomLinks:
+                if link not in set(randomLinks):
                     randomLinks.append(link)
             else:
                 break
@@ -157,7 +161,7 @@ def crawlLinkQueue():
     
     # Crawl required links, which is the home page plus any links imported from a file, builds initial random linksQueue
     for link in requiredLinksQueue:
-        if link not in linksHistory:
+        if link not in set(linksHistory):
             proxy.new_har(link)
             print(f"\t[{len(linksHistory) + 1}] Crawling... {link}")
             try:
@@ -186,7 +190,7 @@ def crawlLinkQueue():
         else:
             shuffle(linksQueue)
             link = linksQueue[0]
-            if link not in linksHistory:
+            if link not in set(linksHistory):
                 proxy.new_har(link)
                 print(f"\t[{len(linksHistory) + 1}] Crawling... {link}")
                 try:
@@ -276,7 +280,7 @@ def createUetOpportunity(unpackedQueryString, httpRespStatusCode):
         # Check if prodId and pageType provided
         elif pageType and prodId:
             invalidProdIds = validateProdId(prodId)
-            if pageType.lower() not in ['home','category','other','purchase','searchresults','product','cart']:
+            if pageType.lower() not in {'home','category','other','purchase','searchresults','product','cart'}:
                 opportunity += f"The pagetype {pageType} is not a valid pagetype. "
             if len(invalidProdIds) > 0:
                 opportunity += f"The prodIds {invalidProdIds} are invalid (ASCII only, max length of 50 characters)."
@@ -292,7 +296,7 @@ def createUetOpportunity(unpackedQueryString, httpRespStatusCode):
 def validateProdId(prodId):
     invalidProdIds = []
     prodIdSplit = prodId.split(',')
-    for prodIdToCheck in prodIdSplit:
+    for prodIdToCheck in set(prodIdSplit):
         if not prodIdToCheck.isascii():
             invalidProdIds.append(prodIdToCheck)
         elif len(prodIdToCheck) > 50:

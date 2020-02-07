@@ -1,5 +1,5 @@
 # Automated UET Audit
-# Version 1.11 (02/06/2020)
+# Version 1.12 (02/07/2020)
 # Phillip Molock | phmolock@microsoft.com
 # For a list of commands  to use with this script type python uetaudit.py --options 
 
@@ -17,15 +17,19 @@ import time, os, csv, sys, getopt, re
 # Overall script settings 
 settings = {
     'homepage': None,
-    'timePerPage': 10,
+    'timePerPage': 20,
     'pagesToCrawl': 10,
     'requiredPagesToCrawl': None,
     'txtFileLocation': None,
     'outputDirectory': 'output',
+    'logsDirectory': 'logs',
     'customer': None,
-    'version': 1.11,
+    'version': 1.12,
     'versionDate':'02/06/2020'
 }
+
+# Capture any non-critical errors for print out
+logs = []
 
 # Merge the arguments received from command line with script settings
 def mergeSettings():
@@ -162,20 +166,32 @@ def crawlLinkQueue():
     # Crawl required links, which is the home page plus any links imported from a file, builds initial random linksQueue
     for link in requiredLinksQueue:
         if link not in set(linksHistory):
+            harDict[link] = []
+            links = None
             proxy.new_har(link)
             print(f"\t[{len(linksHistory) + 1}] Crawling... {link}")
+
             try:
                 browser.get(link)
             except Exception as e:
-                print(f"--Error While Running Script--\n\t[Error] Encountered error while navigating automted browser to {link}. Skipping page.\n\t[Python Error] {e}")
+                log = f"--Error While Running Script--\n\t[Error] Encountered error while navigating automated browser to {link}. Skipping page.\n\t[Python Error] {e}"
+                print(log)
+                logs.append(log)
                 continue
+
             time.sleep(settings['timePerPage'])
-            links = browser.find_elements_by_xpath("//a[@href]")
-            harDict[link] = []
+
+            try:
+                links = browser.find_elements_by_xpath("//a[@href]")
+            except Exception as e:
+                    log = f"--Error While Running Script--\n\tIssue finding new links in {link}.\n\t[Python Error] {e}"
+                    logs.append(log)
+            
             for entry in proxy.har['log']['entries']:
                 if 'bat.bing.com/action' in entry['request']['url']:
-                    harDict[link].append(entry)            
-            newLinks = getNewLinks(links, linksHistory)
+                    harDict[link].append(entry)
+
+            newLinks = getNewLinks(links, linksHistory) if links else []
             linksQueue.extend(newLinks)
             linksHistory.append(link)
     
@@ -190,21 +206,32 @@ def crawlLinkQueue():
         else:
             shuffle(linksQueue)
             link = linksQueue[0]
+            harDict[link] = []
+            links = None
+
             if link not in set(linksHistory):
                 proxy.new_har(link)
                 print(f"\t[{len(linksHistory) + 1}] Crawling... {link}")
                 try:
                     browser.get(link)
+                    time.sleep(settings['timePerPage'])
                 except Exception as e:
-                    print(f"--Error While Running Script--\n\t[Error] Encountered error while navigating automted browser to {link}. Skipping page.\n\t[Python Error] {e}")
+                    log = f"--Error While Running Script--\n\t[Error] Encountered error while navigating automated browser to {link}. Skipping page.\n\t[Python Error] {e}"
+                    print(log)
+                    logs.append(log)
                     continue
-                time.sleep(settings['timePerPage'])
-                links = browser.find_elements_by_xpath("//a[@href]")
-                harDict[link] = []
+                
+                try:
+                    links = browser.find_elements_by_xpath("//a[@href]")
+                except Exception as e:
+                    log = f"--Error While Running Script--\n\tIssue finding new links in {link}.\n\t[Python Error] {e}"
+                    logs.append(log)
+                
                 for entry in proxy.har['log']['entries']:
                     if 'bat.bing.com/action' in entry['request']['url']:
                         harDict[link].append(entry)
-                newLinks = getNewLinks(links, linksHistory)
+
+                newLinks = getNewLinks(links, linksHistory) if links else []
                 del(linksQueue[0])
                 linksQueue.extend(newLinks)
                 linksHistory.append(link)
@@ -317,7 +344,7 @@ def analyzeHarDict(harDict):
                 '',
                 '',
                 '',
-                'No UET tags detected. Please insure UET is properly placed on every page.'
+                f'No UET pageLoad tag detected. Either UET is not on the page or UET did not load within {settings["timePerPage"]} seconds.'
             ]
             reportResults.append(newReportRow)
 
@@ -355,7 +382,7 @@ def analyzeHarDict(harDict):
                 '',
                 '',
                 '',
-                'No UET pageLoad tag detected. Please insure UET is properly placed on every page.'
+                f'No UET pageLoad tag detected. Either UET is not on the page or UET did not load within {settings["timePerPage"]} seconds.'
             ]
             reportResults.append(newReportRow)
             
@@ -384,12 +411,26 @@ def createOutput(reportResults):
         for row in reportResults:
             csvWriter.writerow(row)
 
+def createLogsOutput():
+    try:
+        os.mkdir(settings['logsDirectory'])
+    except:
+        pass
+    customerName = getCustomerName()
+    fileName = f"{settings['logsDirectory']}/Logs {customerName} {randint(0,10000)}.txt"
+    with open(fileName, 'w',newline='') as txtOut:
+        for log in logs:
+            txtOut.write(log)
+    return fileName
+
 # Main
 def main():
     mergeSettings()
     harDict = crawlLinkQueue()
     reportResults = analyzeHarDict(harDict)
     createOutput(reportResults)
+    if len(logs) > 0:
+        print(f"There were {len(logs)} non-critical errors detected during this audit. Please review {createLogsOutput()} for more details.")
     print(f"\nFinished. Please check {settings['outputDirectory']} for your results.")
       
 if __name__ == "__main__":

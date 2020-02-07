@@ -115,7 +115,12 @@ def getNewLinks(links, linksHistory):
     randomLinks = []
     
     for link in links:
-        href = link.get_attribute("href")
+        try:
+            href = link.get_attribute("href")
+        except Exception as e:
+            log = f"--Error While Running Script--\n\t[Error] Encountered error while trying to get href attribute of {link}. Skipping adding link.\n\t[Python Error] {e}"
+            logs.append(log)
+            continue
         # print(f"Verifying {href}.. {verifyHref(href, linksHistory, newLinks)}")
         if verifyHref(href, linksHistory, newLinks):
             newLinks.append(href)
@@ -421,6 +426,7 @@ def createLogsOutput():
     with open(fileName, 'w',newline='') as txtOut:
         for log in logs:
             txtOut.write(log)
+    print(f"Length of logs: {len(logs)}")
     return fileName
 
 # Main

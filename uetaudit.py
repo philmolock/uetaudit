@@ -1,31 +1,28 @@
 # Automated UET Audit
-# Version 1.12 (02/07/2020)
+# Version 2.00 (02/17/2020)
 # Phillip Molock | phmolock@microsoft.com
 # For a list of commands  to use with this script type python uetaudit.py --options 
 
-# To do 
-# 1. Factor in robots.txt 
-# 2. Factor in sitemap.xml
-
 from selenium import webdriver
+from selenium.webdriver.common.desired_capabilities import DesiredCapabilities
 from browsermobproxy import Server
 from urllib.parse import urlparse
 from pprint import pprint
 from random import randint, shuffle
-import time, os, csv, sys, getopt, re
+from datetime import datetime
+import time, os, csv, sys, getopt, re, json
 
 # Overall script settings 
 settings = {
     'homepage': None,
-    'timePerPage': 20,
-    'pagesToCrawl': 10,
-    'requiredPagesToCrawl': None,
+    'waitTimePerPage': 20,
+    'pagesToCrawl': None,
     'txtFileLocation': None,
     'outputDirectory': 'output',
     'logsDirectory': 'logs',
     'customer': None,
-    'version': 1.12,
-    'versionDate':'02/06/2020'
+    'version': 2.0,
+    'versionDate':'02/17/2020'
 }
 
 # Capture any non-critical errors for print out
@@ -50,9 +47,10 @@ def mergeSettings():
             if re.match('(https://|http://).*\..*\..*',choice):
                 parsedHomepageUrl = urlparse(choice)
                 if parsedHomepageUrl.scheme != '' and parsedHomepageUrl.netloc != '' and re.match('.*\..*\..*', parsedHomepageUrl.netloc):
+                    choice = choice[:-1] if choice.endswith('/') else choice
                     settings['homepage'] = choice
             else:
-                print(f"\n--Error Starting the Script--\n[Error] The homepage provided is not in proper format https://www.bing.com\n\t[Example Command | Just a homepage]\tpython uetaudit.py --homepage https://www.bing.com\n\t[Example Command | Just a txt file]\tpython uetaudit.py --file urls.txt\n\t[Example Command | Homepage and txt file]\tpython uetaudit.py --homepage https://www.bing.com --file urls.txt\n")    
+                print(f"\n--Error Starting the Script--\n[Error] The homepage provided is not in proper format https://www.bing.com\n\t[Example Command | Just a homepage]\tpython uetaudit.py --homepage https://www.bing.com")    
                 printOptions()
 
         elif specificOption == '--pagecount':
@@ -68,7 +66,6 @@ def mergeSettings():
         elif specificOption == '--file':
             if choice.endswith('.txt'):
                 settings['txtFileLocation'] = choice
-                settings['requiredPagesToCrawl'] = readPagesFromText(settings['txtFileLocation'])
             else:
                 print(f"\n--Error Starting the Script--\n\n[Error] Please specify a text file when using the --file option. The file name {choice} does not end in .txt\n")
                 printOptions()
@@ -76,24 +73,24 @@ def mergeSettings():
             printOptions()
             
     # Confirm settings provide the minimum information (at least a homepage and/or required pages to crawl)   
-    if not settings['homepage'] and not settings['requiredPagesToCrawl']:
-        print(f"\n--Error Starting the Script--\n[Error] No homepage or text file of URLs specified. The script has no URLs to analyze. Please specify a home page or a text file of URLs (or both).\n\t[Example Command | Just a homepage]\tpython uetaudit.py --homepage https://www.bing.com\n\t[Example Command | Just a txt file]\tpython uetaudit.py --file urls.txt\n\t[Example Command | Homepage and txt file]\tpython uetaudit.py --homepage https://www.bing.com --file urls.txt\n")     
+    if not settings['homepage'] and not settings['txtFileLocation']:
+        print(f"\n--Error Starting the Script--\n[Error] No homepage or text file of URLs specified. The script has no URL(s) to analyze. Please specify a home page or a text file of URLs.\n\t[Example Command | Homepage plus crawl]\tpython uetaudit.py --homepage https://www.bing.com --pagecount 3\n\t[Example Command | A text file]\tpython uetaudit.py --file urls.txt")     
         printOptions()
 
     print(f"--UET Automated Audit--\n\tVersion: {settings['version']} {settings['versionDate']}\n\tFor a list of options: python uetaudit.py --options\n\n--Audit Details--\n\tAdvertiser Homepage: {settings['homepage']}\n\tPages to Crawl: {settings['pagesToCrawl']}\n\tText File: {settings['txtFileLocation']}\n\tCustomer Name: {getCustomerName()}")
 
 # Read URLs from text file into requierdPages list
-def readPagesFromText(txtFileLocation):
-    requiredPages = []
+def getPagesFromTxtFile():
+    pagesFromTxtFile = []
     try: 
-        with open(txtFileLocation, 'r', errors='ignore') as txtIn:
+        with open(settings['txtFileLocation'], 'r', errors='ignore') as txtIn:
             for line in txtIn:
                 line = line.replace('\n','')
-                requiredPages.append(line)
+                pagesFromTxtFile.append(line)
     except Exception as e:
-        print(f"\n--Error Starting the Script--\n\n[Error] There was an issue reading from {txtFileLocation}\nPlease insure you've provided the exact or relative path to the text file. It's recommended you place the text file in the same directory as the script.\n[Python Error Specifics] {e}\n")
+        print(f"\n--Error Starting the Script--\n\n[Error] There was an issue reading from {settings['txtFileLocation']}\nPlease insure you've provided the exact or relative path to the text file. It's recommended you place the text file in the same directory as the script.\n[Python Error Specifics] {e}\n")
         printOptions()
-    return requiredPages
+    return pagesFromTxtFile
 
 # Print possible options you can include when running the script in the command shell
 def printOptions():
@@ -104,12 +101,12 @@ def printOptions():
 def verifyHref(href, linksHistory, newLinks):
     hrefNetloc = urlparse(href).netloc
     homePageNetloc = urlparse(settings['homepage']).netloc
-    if hrefNetloc == homePageNetloc and href not in set(linksHistory) and href != settings['homepage'] and href not in set(newLinks) and not re.match('.*(/help|/login|/faq|/contact|/contactus|/customerservice|/customer-service|/account)', href) and href != f"{settings['homepage']}/":
+    if hrefNetloc == homePageNetloc and href not in set(linksHistory) and href != settings['homepage'] and href not in set(newLinks) and not re.match('.*(/help|/login|/logon|/logonform|/form|/faq|/contact|/contactus|/customerservice|/customer-service|/account|/user|/logout|/careers)', href) and href != f"{settings['homepage']}/" and not href.split('#')[0] == settings['homepage']:
         return True
     else:
         return False
 
-# Get a new list of links to add to the linksQueue 
+# Get a new list of links to add to the linksQueue
 def getNewLinks(links, linksHistory):
     newLinks = []
     randomLinks = []
@@ -121,7 +118,6 @@ def getNewLinks(links, linksHistory):
             log = f"--Error While Running Script--\n\t[Error] Encountered error while trying to get href attribute of {link}. Skipping adding link.\n\t[Python Error] {e}"
             logs.append(log)
             continue
-        # print(f"Verifying {href}.. {verifyHref(href, linksHistory, newLinks)}")
         if verifyHref(href, linksHistory, newLinks):
             newLinks.append(href)
     
@@ -138,261 +134,170 @@ def getNewLinks(links, linksHistory):
 
     return randomLinks
 
-# Depending on homepage and/or txt file provided, build required pages to crawl list
-def getRequiredLinkQueue():
-    if not settings['homepage'] and not settings['requiredPagesToCrawl']:
-        return []
-    elif settings['homepage'] and not settings['requiredPagesToCrawl']:
-        return [settings['homepage']]
-    elif not settings['homepage'] and settings['requiredPagesToCrawl']:
-       return settings['requiredPagesToCrawl']
-    else:
-        return [settings['homepage']] + settings['requiredPagesToCrawl']
+# Browse to a page and monitor the Chrome network performance for requests to bat.bing.com/action
+def analyzePage(browser, page, **kwargs):
+    startTime = datetime.now()
+    returnNewLinks = kwargs.get('returnNewLinks', None)
+    pageHistory = kwargs.get('pageHistory', None)
+    uetEvents = []
 
-def crawlLinkQueue():
-    try:
-        server = Server('browsermob-proxy-2.1.4\\bin\\browsermob-proxy.bat')
-        server.start()
-        proxy = server.create_proxy()
-        chrome_options = webdriver.ChromeOptions()
-        chrome_options.add_argument(f"--proxy-server={proxy.proxy}")
-        chrome_options.add_argument(f"--ignore-certificate-errors")
-        browser = webdriver.Chrome(options = chrome_options)
-    except Exception as e:
-        print(f"--Error While Running Script--\n\t[Error] Encountered error while starting local server, proxy server, or automated browser.\n\t[Python Error] {e}")
-        server.stop()
-
-    linksHistory = []
-    requiredLinksQueue = getRequiredLinkQueue()
-    linksQueue = []
-    harDict = {}
-    settings['pagesToCrawl'] += len(requiredLinksQueue)
-    
-    # Crawl required links, which is the home page plus any links imported from a file, builds initial random linksQueue
-    for link in requiredLinksQueue:
-        if link not in set(linksHistory):
-            harDict[link] = []
-            links = None
-            proxy.new_har(link)
-            print(f"\t[{len(linksHistory) + 1}] Crawling... {link}")
-
-            try:
-                browser.get(link)
-            except Exception as e:
-                log = f"--Error While Running Script--\n\t[Error] Encountered error while navigating automated browser to {link}. Skipping page.\n\t[Python Error] {e}"
-                print(log)
-                logs.append(log)
-                continue
-
-            time.sleep(settings['timePerPage'])
-
-            try:
-                links = browser.find_elements_by_xpath("//a[@href]")
-            except Exception as e:
-                    log = f"--Error While Running Script--\n\tIssue finding new links in {link}.\n\t[Python Error] {e}"
-                    logs.append(log)
-            
-            for entry in proxy.har['log']['entries']:
-                if 'bat.bing.com/action' in entry['request']['url']:
-                    harDict[link].append(entry)
-
-            newLinks = getNewLinks(links, linksHistory) if links else []
-            linksQueue.extend(newLinks)
-            linksHistory.append(link)
-    
-    # If you only provided a text file and no homepage, the links queue will be zero and we can return the current harDict
-    if len(linksQueue) == 0:
-        return harDict
-
-    # Randomly crawl through the linksQueue (while adding new links to it) until you've hit the pagecount required 
-    while True:
-        if len(linksHistory) == settings['pagesToCrawl']:
-            return harDict
+    print(f"{page[:50]}...", end="\t")
+    browser.get(page)
+    while (datetime.now() - startTime).seconds <= settings['waitTimePerPage']:
+        documentReadyState = browser.execute_script("return document.readyState;") 
+        uetq = browser.execute_script("if(typeof(uetq) == 'undefined'){return false;}else{return true;}") 
+        if documentReadyState == 'complete' and uetq:
+            for entry in browser.get_log('performance'):
+                jsonEntry = json.loads(entry['message'])
+                if jsonEntry['message']['method'].lower() == ('network.requestwillbesent'):
+                    url = jsonEntry['message']['params']['request']['url']
+                    if 'bat.bing.com/action' in url:
+                        uetEvents.append(url)
+            break
         else:
-            shuffle(linksQueue)
-            link = linksQueue[0]
-            harDict[link] = []
-            links = None
+            time.sleep(5)
+    print(f"{len(uetEvents)} UET Event{'s' if len(uetEvents) > 1 else ''}")
+    if returnNewLinks and type(pageHistory) == list:
+        potentialNewLinks = browser.find_elements_by_xpath("//a[@href]")
+        newLinks = getNewLinks(potentialNewLinks, pageHistory)
+        return uetEvents, newLinks
+    else:
+        return uetEvents
 
-            if link not in set(linksHistory):
-                proxy.new_har(link)
-                print(f"\t[{len(linksHistory) + 1}] Crawling... {link}")
-                try:
-                    browser.get(link)
-                    time.sleep(settings['timePerPage'])
-                except Exception as e:
-                    log = f"--Error While Running Script--\n\t[Error] Encountered error while navigating automated browser to {link}. Skipping page.\n\t[Python Error] {e}"
-                    print(log)
-                    logs.append(log)
-                    continue
-                
-                try:
-                    links = browser.find_elements_by_xpath("//a[@href]")
-                except Exception as e:
-                    log = f"--Error While Running Script--\n\tIssue finding new links in {link}.\n\t[Python Error] {e}"
-                    logs.append(log)
-                
-                for entry in proxy.har['log']['entries']:
-                    if 'bat.bing.com/action' in entry['request']['url']:
-                        harDict[link].append(entry)
+# Build out a dictionary of uet events for each page that needs to be audited
+def getUetEventsByPage():
+    uetEventsByPage = {}
+    # Configure and open browser
+    try:
+        options = webdriver.ChromeOptions()
+        options.add_argument('log-level=3')
+        caps = DesiredCapabilities.CHROME
+        caps['goog:loggingPrefs'] = {'performance': 'ALL'}
+        browser = webdriver.Chrome(desired_capabilities=caps, options=options)
+    except Exception as e:
+        print(f"--Error While Running Script--\n\t[Error] Encountered error while starting the automated browser.\n\t[Python Error] {e}")
+    print("\n--Beginning Audit--\n")
+    # Just analyzing the homepage
+    if settings['homepage'] and not settings['pagesToCrawl'] and not settings['txtFileLocation']:
+        print(f"[1/1]", end=' ')
+        uetEventsByPage[settings['homepage']] = analyzePage(browser, settings['homepage'])
+    # Analyzing the homepage and randomly crawling
+    elif settings['homepage'] and settings['pagesToCrawl'] and not settings['txtFileLocation']:
+        pageHistory = []
+        pageQueue = [settings['homepage'],]
+        pagesCrawled = 0
+        while pagesCrawled <= settings['pagesToCrawl']:
+            shuffle(pageQueue)
+            currentPage = pageQueue[0]
+            print(f"[{pagesCrawled + 1}/{settings['pagesToCrawl'] + 1}]", end=' ')
+            uetEventsByPage[currentPage], newLinks = analyzePage(browser, currentPage, returnNewLinks = True, pageHistory = pageHistory)
+            pageHistory.append(currentPage)
+            pageQueue.extend(newLinks)
+            del(pageQueue[0])
+            pagesCrawled += 1
+    # Analyzing pages in a txt file
+    elif settings['txtFileLocation'] and not settings['homepage'] and not settings['pagesToCrawl']:
+        pageQueue = getPagesFromTxtFile()
+        pagesCrawled = 1
+        for currentPage in pageQueue:
+            print(f"[{pagesCrawled}/{len(pageQueue)}]", end=' ')
+            uetEventsByPage[settings['homepage']] = analyzePage(browser, currentPage)
+            pagesCrawled += 1
+    
+    return uetEventsByPage
 
-                newLinks = getNewLinks(links, linksHistory) if links else []
-                del(linksQueue[0])
-                linksQueue.extend(newLinks)
-                linksHistory.append(link)
-                
-# Take a query string from the HAR and unpack into the individual parameters
-def unpackQueryString(queryString):
-
-    unpackedQueryString = {
-        'eventType' : None,
-        'tagId' : None,
-        'eventCategory' : None,
-        'eventLabel' : None,
-        'eventValue' : None,
-        'eventAction' : None,
-        'goalValue' : None,
-        'goalCurrency' : None,
-        'pageType': None,
-        'prodId': None,
-    }
-
-    for parameter in queryString:
-        if parameter['name'] == 'evt':
-            unpackedQueryString['eventType'] = parameter['value']
-        elif parameter['name'] == 'ti':
-            unpackedQueryString['tagId'] = parameter['value']
-        elif parameter['name'] == 'ec':
-            unpackedQueryString['eventCategory'] = parameter['value']
-        elif parameter['name'] == 'el':
-            unpackedQueryString['eventLabel'] = parameter['value']
-        elif parameter['name'] == 'ev':
-            unpackedQueryString['eventValue'] = parameter['value']
-        elif parameter['name'] == 'ea':
-            unpackedQueryString['eventAction'] = parameter['value']
-        elif parameter['name'] == 'gv':
-            unpackedQueryString['goalValue'] = parameter['value']
-        elif parameter['name'] == 'gc':
-            unpackedQueryString['goalCurrency'] = parameter['value']
-        elif parameter['name'] == 'pagetype':
-            unpackedQueryString['pageType'] = parameter['value']
-        elif parameter['name'] == 'prodid':
-            unpackedQueryString['prodId'] = parameter['value']
-
-    return unpackedQueryString
-
-# Take an unpackedQueryString, the httpRespStatusCode from bat.bing.com and create, if any, a UET opportunity for improvement
-def createUetOpportunity(unpackedQueryString, httpRespStatusCode):
-    opportunity=""
-    evt = unpackedQueryString['eventType']
-    ti = unpackedQueryString['tagId']
-    ec = unpackedQueryString['eventCategory']
-    el = unpackedQueryString['eventLabel']
-    ea = unpackedQueryString['eventAction']
-    ev = unpackedQueryString['eventValue']
-    gv = unpackedQueryString['goalValue']
-    gc = unpackedQueryString['goalCurrency']
-    pageType = unpackedQueryString['pageType']
-    prodId = unpackedQueryString['prodId']    
-
-    # Check if bat.bing responded with HTTP Status Code not in the 200s
-    if httpRespStatusCode not in range(200,299):
-        opportunity += f"Http Status Code: {httpRespStatusCode}. "
-
-    # Check if event type is custom
-    if evt == 'custom':
-        # Check if custom event is not a product audience push
-        if not prodId and not pageType:
-            if not ec and not el and not ea and not ev:
-                opportunity += "This is a custom event, but no Event Action (ea), Event Category (ec), Event Label( el), or Event Value (ev) were provided. "
-            if not gv:
-                opportunity += "No variable revenue (gv) provided. "
-            if gv and not gc:
-                opportunity += "Variable revenue provided but no goal currency (gc). "
-        # Check if prodId and pageType provided
-        elif pageType and prodId:
-            invalidProdIds = validateProdId(prodId)
-            if pageType.lower() not in {'home','category','other','purchase','searchresults','product','cart'}:
-                opportunity += f"The pagetype {pageType} is not a valid pagetype. "
-            if len(invalidProdIds) > 0:
-                opportunity += f"The prodIds {invalidProdIds} are invalid (ASCII only, max length of 50 characters)."
-        # Check if no pageType provided but prodId provided
-        elif not pageType and prodId:
-            opportunity += "ProdId provided but no pageType. "
-        elif pageType and not prodId:
-            opportunity += "pageType provided but no prodId. "
-
-    return opportunity
-
-# Validate a Product ID follows Microsoft Shopping Feed requirements
-def validateProdId(prodId):
-    invalidProdIds = []
-    prodIdSplit = prodId.split(',')
-    for prodIdToCheck in set(prodIdSplit):
-        if not prodIdToCheck.isascii():
-            invalidProdIds.append(prodIdToCheck)
-        elif len(prodIdToCheck) > 50:
-            invalidProdIds.append(prodIdToCheck)
-    return set(invalidProdIds)
-
-# Build out reportResults
-def analyzeHarDict(harDict):
-    reportResults = [['Page','TagId','Event Type','Query String Details','HTTP Response Code','Opportunity'],]
-    for page, entries in harDict.items():
-        pageLoadDetected = False
-        # no UET detected on this page
-        if len(entries) == 0:
-            
-            newReportRow = [
-                page,
-                '',
-                '',
-                '',
-                '',
-                f'No UET pageLoad tag detected. Either UET is not on the page or UET did not load within {settings["timePerPage"]} seconds.'
-            ]
-            reportResults.append(newReportRow)
-
-        for entry in entries:
-            unpackedQueryString = unpackQueryString(entry['request']['queryString'])
-            evt = unpackedQueryString['eventType']
-            ti = unpackedQueryString['tagId']
-            ec = unpackedQueryString['eventCategory']
-            el = unpackedQueryString['eventLabel']
-            ea = unpackedQueryString['eventAction']
-            ev = unpackedQueryString['eventValue']
-            gv = unpackedQueryString['goalValue']
-            gc = unpackedQueryString['goalCurrency']
-            pageType = unpackedQueryString['pageType']
-            prodId = unpackedQueryString['prodId']
-            httpRespStatusCode = entry['response']['status']
-
-            if evt == 'pageLoad':
-                pageLoadDetected = True 
-            
-            newReportRow = [
-                page,
-                ti, 
-                evt,
-                f"{'ea='+ ea + ' ' if ea else ''}{'ev=' + ev + ' ' if ev else ''}{'ec=' + ec + ' ' if ec else ''}{'el=' + el + ' ' if el else ''}{'gv=' + gv + ' ' if gv else ''}{'gc=' + gc + ' ' if gc else ''}{'pagetype=' + pageType + ' ' if pageType else ''}{'prodid=' + prodId + ' ' if prodId else ''}",
-                httpRespStatusCode,
-                createUetOpportunity(unpackedQueryString, entry['response']['status'])
-            ]
-            reportResults.append(newReportRow)
+# Analyze uetevents from a page and return rows to output to the final report
+def analyzeUetEvents(uetEvents, page):
+    pageLoadDetected = False
+    outputRows = []
+    for uetEvent in uetEvents:
+        analyzedUetEvent = {
+            'tagId': None,
+            'eventType': None,
+            'eventAction': None,
+            'eventCategory': None,
+            'eventLabel': None,
+            'eventValue': None,
+            'goalValue': None,
+            'goalCurrency': None,
+            'prodId': None,
+            'pageType': None,
+            'opportunity': '',
+        }
+        # Pull tagId from ? front portion 
+        analyzedUetEvent['tagId'] = uetEvent.split('?')[1].split('&')[0].split('ti=')[1]
         
-        if not pageLoadDetected and len(entries) > 0:
-            newReportRow = [
-                page,
-                '',
-                '',
-                '',
-                '',
-                f'No UET pageLoad tag detected. Either UET is not on the page or UET did not load within {settings["timePerPage"]} seconds.'
-            ]
-            reportResults.append(newReportRow)
-            
-    return reportResults
+        # Split uet event by & to review parameters
+        uetEventSplit = uetEvent.split('&')
+        for parameter in uetEventSplit:
+            if parameter.startswith('evt='):
+                analyzedUetEvent['eventType'] = parameter.split('evt=')[1]
+            if parameter.startswith('ea='):
+                analyzedUetEvent['eventAction'] = parameter.split('ea=')[1]
+            if parameter.startswith('ec='):
+                analyzedUetEvent['eventCategory'] = parameter.split('ec=')[1]
+            if parameter.startswith('el='):
+                analyzedUetEvent['eventLabel'] = parameter.split('el=')[1]
+            if parameter.startswith('ev='):
+                analyzedUetEvent['eventValue'] = parameter.split('ev=')[1]
+            if parameter.startswith('gv='):
+                analyzedUetEvent['goalValue'] = parameter.split('gv=')[1]
+            if parameter.startswith('gc='):
+                analyzedUetEvent['goalCurrency'] = parameter.split('gc=')[1]
+            if parameter.startswith('prodid='):
+                analyzedUetEvent['prodId'] = parameter.split('prodid=')[1]
+            if parameter.startswith('pagetype='):
+                analyzedUetEvent['pageType'] = parameter.split('pagetype=')[1]
+        
+        # Check for pageLoad
+        if analyzedUetEvent['eventType'] == 'pageLoad':
+            pageLoadDetected = True
 
+        # pageType but no prodId
+        if analyzedUetEvent['pageType'] and not analyzedUetEvent['prodId']:
+            analyzedUetEvent['opportunity'] += "Product Audiences: pageType provided but no productId. "
+        
+        # no pageType but prodId
+        if not analyzedUetEvent['pageType'] and analyzedUetEvent['prodId']:
+            analyzedUetEvent['opportunity'] += "Product Audiences: productId provided but no pageType. "
+        
+        # goalCurrency but no goalValue
+        if analyzedUetEvent['goalCurrency'] and not analyzedUetEvent['goalValue']:
+            analyzedUetEvent['opportunity'] += "Variable Revenue: goalCurrency provided but no goalValue. "
+
+        # custom event but at a minimum no goalVlaue
+        if analyzedUetEvent['eventType'] == "custom" and not analyzedUetEvent['goalValue'] and not analyzedUetEvent['eventAction'] and not analyzedUetEvent['eventCategory'] and not analyzedUetEvent['eventLabel'] and not analyzedUetEvent['eventValue'] and not analyzedUetEvent['pageType'] and not analyzedUetEvent['prodId']:
+            analyzedUetEvent['opportunity'] += "Custom Event: The event type is custom, but no additional values were provided (such as an eventAction or goalValue."
+        
+        # Put Custom Event Parameters into string
+        customEventParameters = f"{'ea=' + analyzedUetEvent['eventAction'] + ' ' if analyzedUetEvent['eventAction'] else ''}{'ec=' + analyzedUetEvent['eventCategory'] + ' ' if analyzedUetEvent['eventCategory'] else ''}{'el=' + analyzedUetEvent['eventLabel'] + ' ' if analyzedUetEvent['eventLabel'] else ''}{'ev=' + analyzedUetEvent['eventValue'] + ' ' if analyzedUetEvent['eventValue'] else ''}{'gv=' + analyzedUetEvent['goalValue'] + ' ' if analyzedUetEvent['goalValue'] else ''}{'gc=' + analyzedUetEvent['goalCurrency'] + ' ' if analyzedUetEvent['goalCurrency'] else ''}{'pagetype=' + analyzedUetEvent['pageType'] + ' ' if analyzedUetEvent['pageType'] else ''}{'prodid=' + analyzedUetEvent['prodId'] + ' ' if analyzedUetEvent['prodId'] else ''}"
+        
+        # Add to outputRows which will be returned
+        outputRows.append([page, analyzedUetEvent['tagId'], analyzedUetEvent['eventType'], customEventParameters, analyzedUetEvent['opportunity']])
+    if not pageLoadDetected:
+        outputRows.insert(0,[page,'','','','','No UET detected on page. Please make sure all pages are tagged with a UET pageLoad event.'])
+    return outputRows
+
+# Build the report generating output rows and writing to the report
+def createReport(uetEventsByPage):
+    try:
+        os.mkdir(settings['outputDirectory'])
+    except:
+        pass
+    customerName = getCustomerName()
+    fileName = f"{settings['outputDirectory']}/UET Audit {customerName} {randint(100,999)}.csv"
+    print(f"\nWriting report... {fileName}")
+    with open(fileName, 'w', newline='') as csvOut:
+        csvWriter = csv.writer(csvOut, delimiter=',')
+        csvWriter.writerow(['Page','TagId', 'Event Type','Custom Event Parameters','Opportunity'])
+        for page, uetEvents in uetEventsByPage.items():
+            if len(uetEvents) == 0:
+                csvWriter.writerow([page,'','','','','No UET detected on page. Please make sure all pages are tagged with a UET pageLoad event.'])
+            else:
+                outputRows = analyzeUetEvents(uetEvents, page)
+                for outputRow in outputRows:
+                    csvWriter.writerow(outputRow)
+                
 # Get customer name either from the homepage, --customer option, or return an empty string if nothing specified
 def getCustomerName():
     if settings['customer']:
@@ -402,20 +307,7 @@ def getCustomerName():
     else:
         return ''
 
-# Create final audit report
-def createOutput(reportResults):
-    try:
-        os.mkdir(settings['outputDirectory'])
-    except:
-        pass
-    customerName = getCustomerName()
-    fileName = f"{settings['outputDirectory']}/UET Audit {customerName} {randint(0,10000)}.csv"
-    print(f"\nWriting report... {fileName}")
-    with open(fileName, 'w', newline='') as csvOut:
-        csvWriter = csv.writer(csvOut, delimiter=',')
-        for row in reportResults:
-            csvWriter.writerow(row)
-
+# if any logs exist, write them to a log output file
 def createLogsOutput():
     try:
         os.mkdir(settings['logsDirectory'])
@@ -432,12 +324,9 @@ def createLogsOutput():
 # Main
 def main():
     mergeSettings()
-    harDict = crawlLinkQueue()
-    reportResults = analyzeHarDict(harDict)
-    createOutput(reportResults)
-    if len(logs) > 0:
-        print(f"There were {len(logs)} non-critical errors detected during this audit. Please review {createLogsOutput()} for more details.")
-    print(f"\nFinished. Please check {settings['outputDirectory']} for your results.")
+    uetEventsByPage = getUetEventsByPage()
+    createReport(uetEventsByPage)
+    createLogsOutput()
       
 if __name__ == "__main__":
     main()

@@ -5,7 +5,6 @@
 
 from selenium import webdriver
 from selenium.webdriver.common.desired_capabilities import DesiredCapabilities
-from browsermobproxy import Server
 from urllib.parse import urlparse
 from pprint import pprint
 from random import randint, shuffle

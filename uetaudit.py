@@ -1,5 +1,5 @@
 # Automated UET Audit
-# Version 2.00 (02/17/2020)
+# Version 2.01 (02/19/2020)
 # Phillip Molock | phmolock@microsoft.com
 # For a list of commands  to use with this script type python uetaudit.py --options 
 
@@ -9,7 +9,8 @@ from urllib.parse import urlparse
 from pprint import pprint
 from random import randint, shuffle
 from datetime import datetime
-import time, os, csv, sys, getopt, re, json
+import time, os, csv, sys, getopt, re, json, requests
+from getpass import getuser
 
 # Overall script settings 
 settings = {
@@ -20,12 +21,40 @@ settings = {
     'outputDirectory': 'output',
     'logsDirectory': 'logs',
     'customer': None,
-    'version': 2.0,
-    'versionDate':'02/17/2020'
+    'version': 2.01,
+    'versionDate':'02/19/2020'
 }
 
 # Capture any non-critical errors for print out
 logs = []
+
+# Tracking details for ATAM Script Tracker
+class Atamlogger:
+    def __init__(self, scriptid, scriptname, scriptowner, apikey):
+        self.urlpath = 'https://techsolutionsapi.azurewebsites.net/v1/logs'
+        self.headers = {'key': apikey}
+        self.data = {'username': self.getUser(),
+                    'scriptid': scriptid,
+                    'scriptname': scriptname,
+                    'scriptowner': scriptowner
+                    }
+        self.call()
+
+    def call(self):
+        try:
+            r = requests.post(url=self.urlpath, headers=self.headers, json=self.data)
+            print(r.text)
+        except:
+            print('error - request failed')
+
+    def getUser(self):
+        u = 'unknown'
+        try:
+            u = getuser()
+        except:
+            print('error - could not find username')
+        finally:
+            return u
 
 # Merge the arguments received from command line with script settings
 def mergeSettings():

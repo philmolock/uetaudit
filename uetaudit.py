@@ -1,11 +1,11 @@
 # Automated UET Audit
-# Version 2.01 (02/19/2020)
+# Version 2.02 (02/20/2020)
 # Phillip Molock | phmolock@microsoft.com
 # For a list of commands  to use with this script type python uetaudit.py --options 
 
 from selenium import webdriver
 from selenium.webdriver.common.desired_capabilities import DesiredCapabilities
-from urllib.parse import urlparse
+from urllib.parse import urlparse, unquote
 from pprint import pprint
 from random import randint, shuffle
 from datetime import datetime
@@ -21,8 +21,8 @@ settings = {
     'outputDirectory': 'output',
     'logsDirectory': 'logs',
     'customer': None,
-    'version': 2.01,
-    'versionDate':'02/19/2020'
+    'version': 2.02,
+    'versionDate':'02/20/2020'
 }
 
 # Capture any non-critical errors for print out
@@ -259,23 +259,23 @@ def analyzeUetEvents(uetEvents, page):
         uetEventSplit = uetEvent.split('&')
         for parameter in uetEventSplit:
             if parameter.startswith('evt='):
-                analyzedUetEvent['eventType'] = parameter.split('evt=')[1]
+                analyzedUetEvent['eventType'] = unquote(parameter.split('evt=')[1])
             if parameter.startswith('ea='):
-                analyzedUetEvent['eventAction'] = parameter.split('ea=')[1]
+                analyzedUetEvent['eventAction'] = unquote(parameter.split('ea=')[1])
             if parameter.startswith('ec='):
-                analyzedUetEvent['eventCategory'] = parameter.split('ec=')[1]
+                analyzedUetEvent['eventCategory'] = unquote(parameter.split('ec=')[1])
             if parameter.startswith('el='):
-                analyzedUetEvent['eventLabel'] = parameter.split('el=')[1]
+                analyzedUetEvent['eventLabel'] = unquote(parameter.split('el=')[1])
             if parameter.startswith('ev='):
-                analyzedUetEvent['eventValue'] = parameter.split('ev=')[1]
+                analyzedUetEvent['eventValue'] = unquote(parameter.split('ev=')[1])
             if parameter.startswith('gv='):
-                analyzedUetEvent['goalValue'] = parameter.split('gv=')[1]
+                analyzedUetEvent['goalValue'] = unquote(parameter.split('gv=')[1])
             if parameter.startswith('gc='):
-                analyzedUetEvent['goalCurrency'] = parameter.split('gc=')[1]
+                analyzedUetEvent['goalCurrency'] = unquote(parameter.split('gc=')[1])
             if parameter.startswith('prodid='):
-                analyzedUetEvent['prodId'] = parameter.split('prodid=')[1]
+                analyzedUetEvent['prodId'] = unquote(parameter.split('prodid=')[1])
             if parameter.startswith('pagetype='):
-                analyzedUetEvent['pageType'] = parameter.split('pagetype=')[1]
+                analyzedUetEvent['pageType'] = unquote(parameter.split('pagetype=')[1])
         
         # Check for pageLoad
         if analyzedUetEvent['eventType'] == 'pageLoad':

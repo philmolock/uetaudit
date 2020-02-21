@@ -229,7 +229,7 @@ def getUetEventsByPage():
         pagesCrawled = 1
         for currentPage in pageQueue:
             print(f"[{pagesCrawled}/{len(pageQueue)}]", end=' ')
-            uetEventsByPage[settings['homepage']] = analyzePage(browser, currentPage)
+            uetEventsByPage[currentPage] = analyzePage(browser, currentPage)
             pagesCrawled += 1
     
     return uetEventsByPage

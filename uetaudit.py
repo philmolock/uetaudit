@@ -1,5 +1,5 @@
 # Automated UET Audit
-# Version 2.02 (02/20/2020)
+# Version 2.02 (02/27/2020)
 # Phillip Molock | phmolock@microsoft.com
 # For a list of commands  to use with this script type python uetaudit.py --options 
 
@@ -22,7 +22,7 @@ settings = {
     'logsDirectory': 'logs',
     'customer': None,
     'version': 2.02,
-    'versionDate':'02/20/2020'
+    'versionDate':'02/27/2020'
 }
 
 # Capture any non-critical errors for print out
@@ -126,14 +126,32 @@ def printOptions():
     quit()
 
 # Verify that a link is acceptable for addition to the linksQueue
+# def verifyHref2(href, linksHistory, newLinks):
+#     hrefNetloc = urlparse(href).netloc
+#     homePageNetloc = urlparse(settings['homepage']).netloc
+#     if hrefNetloc == homePageNetloc and href not in set(linksHistory) and href != settings['homepage'] and href not in set(newLinks) and not re.match('.*(/help|/login|/logon|/logonform|/form|/faq|/contact|/contactus|/customerservice|/customer-service|/account|/user|/logout|/careers)', href) and href != f"{settings['homepage']}/" and not href.split('#')[0] == settings['homepage']:
+#         return True
+#     else:
+#         return False
+# Verify that a link is acceptable for addition to the linksQueue
 def verifyHref(href, linksHistory, newLinks):
-    hrefNetloc = urlparse(href).netloc
-    homePageNetloc = urlparse(settings['homepage']).netloc
-    if hrefNetloc == homePageNetloc and href not in set(linksHistory) and href != settings['homepage'] and href not in set(newLinks) and not re.match('.*(/help|/login|/logon|/logonform|/form|/faq|/contact|/contactus|/customerservice|/customer-service|/account|/user|/logout|/careers)', href) and href != f"{settings['homepage']}/" and not href.split('#')[0] == settings['homepage']:
+    print(settings['homepage'])
+    hrefParse = urlparse(href)
+    homePageParse = urlparse(settings['homepage'])
+    sameNetloc = False
+    if hrefParse.netloc == homePageParse.netloc:        
+        sameNetloc = True
+    else:
+        # some links will not have www.
+        # break down href to netlocation by removing path and scheme and add www. to compare to homePage netloc
+        trimmedHref = href.replace(hrefParse.path,'').replace(hrefParse.scheme,'').replace('://','')
+        print(trimmedHref)
+        if 'www.' + trimmedHref == homePageParse.netloc:
+            sameNetloc = True
+    if (sameNetloc) and (href not in set(linksHistory)) and (href != settings['homepage']) and (href not in set(newLinks)) and (not re.match('.*(/help|/login|/logon|/logonform|/form|/faq|/contact|/contactus|/customerservice|/customer-service|/account|/user|/logout|/careers)', href)) and (href != f"{settings['homepage']}/") and (not href.split('#')[0] == settings['homepage']):
         return True
     else:
         return False
-
 # Get a new list of links to add to the linksQueue
 def getNewLinks(links, linksHistory):
     newLinks = []
@@ -142,6 +160,7 @@ def getNewLinks(links, linksHistory):
     for link in links:
         try:
             href = link.get_attribute("href")
+            print(href)
         except Exception as e:
             log = f"--Error While Running Script--\n\t[Error] Encountered error while trying to get href attribute of {link}. Skipping adding link.\n\t[Python Error] {e}"
             logs.append(log)
@@ -188,6 +207,9 @@ def analyzePage(browser, page, **kwargs):
     if returnNewLinks and type(pageHistory) == list:
         potentialNewLinks = browser.find_elements_by_xpath("//a[@href]")
         newLinks = getNewLinks(potentialNewLinks, pageHistory)
+        if len(newLinks) == 0:
+            potentialNewLinks == browser.find_element_by_tag_name("a")
+            newLinks = getNewLinks(potentialNewLinks, pageHistory)
         return uetEvents, newLinks
     else:
         return uetEvents
@@ -218,11 +240,14 @@ def getUetEventsByPage():
             shuffle(pageQueue)
             currentPage = pageQueue[0]
             print(f"[{pagesCrawled + 1}/{settings['pagesToCrawl'] + 1}]", end=' ')
-            uetEventsByPage[currentPage], newLinks = analyzePage(browser, currentPage, returnNewLinks = True, pageHistory = pageHistory)
+            uetEventsByPage[currentPage], newLinks = analyzePage(browser, currentPage, returnNewLinks = True, pageHistory = pageHistory)            
             pageHistory.append(currentPage)
             pageQueue.extend(newLinks)
-            del(pageQueue[0])
+            del(pageQueue[0])            
             pagesCrawled += 1
+            if len(pageQueue) == 0:
+                print(f"\tThere were no new links returned and zero links in the link queue. Quitting.")
+                break
     # Analyzing pages in a txt file
     elif settings['txtFileLocation'] and not settings['homepage'] and not settings['pagesToCrawl']:
         pageQueue = getPagesFromTxtFile()

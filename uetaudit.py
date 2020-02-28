@@ -1,5 +1,5 @@
 # Automated UET Audit
-# Version 2.02 (02/27/2020)
+# Version 2.03 (02/28/2020)
 # Phillip Molock | phmolock@microsoft.com
 # For a list of commands  to use with this script type python uetaudit.py --options 
 
@@ -21,8 +21,8 @@ settings = {
     'outputDirectory': 'output',
     'logsDirectory': 'logs',
     'customer': None,
-    'version': 2.02,
-    'versionDate':'02/27/2020'
+    'version': 2.03,
+    'versionDate':'02/28/2020'
 }
 
 # Capture any non-critical errors for print out
@@ -125,30 +125,25 @@ def printOptions():
     print(f"--Command Options--\n\t--homepage\tSpecify URL of homepage you'd like to audit\n\t--pagecount\tThe number of pages you'd like to randomly crawl\n\t--file\t\tThe location of a txt file containing URLs to crawl\n\t--customer\tCustomer name to be used with output file\n\t--options\tList available command options")
     quit()
 
-# Verify that a link is acceptable for addition to the linksQueue
-# def verifyHref2(href, linksHistory, newLinks):
-#     hrefNetloc = urlparse(href).netloc
-#     homePageNetloc = urlparse(settings['homepage']).netloc
-#     if hrefNetloc == homePageNetloc and href not in set(linksHistory) and href != settings['homepage'] and href not in set(newLinks) and not re.match('.*(/help|/login|/logon|/logonform|/form|/faq|/contact|/contactus|/customerservice|/customer-service|/account|/user|/logout|/careers)', href) and href != f"{settings['homepage']}/" and not href.split('#')[0] == settings['homepage']:
-#         return True
-#     else:
-#         return False
-# Verify that a link is acceptable for addition to the linksQueue
 def verifyHref(href, linksHistory, newLinks):
-    print(settings['homepage'])
     hrefParse = urlparse(href)
     homePageParse = urlparse(settings['homepage'])
     sameNetloc = False
+    pathOversaturated = False
     if hrefParse.netloc == homePageParse.netloc:        
         sameNetloc = True
     else:
         # some links will not have www.
         # break down href to netlocation by removing path and scheme and add www. to compare to homePage netloc
         trimmedHref = href.replace(hrefParse.path,'').replace(hrefParse.scheme,'').replace('://','')
-        print(trimmedHref)
         if 'www.' + trimmedHref == homePageParse.netloc:
             sameNetloc = True
-    if (sameNetloc) and (href not in set(linksHistory)) and (href != settings['homepage']) and (href not in set(newLinks)) and (not re.match('.*(/help|/login|/logon|/logonform|/form|/faq|/contact|/contactus|/customerservice|/customer-service|/account|/user|/logout|/careers)', href)) and (href != f"{settings['homepage']}/") and (not href.split('#')[0] == settings['homepage']):
+
+    hrefPath = '/'.join(hrefParse.path.split('/')[:-1])
+    if len(list(filter(lambda item: hrefPath in item, linksHistory))) > 5:
+        pathOversaturated = True
+
+    if (sameNetloc) and (not pathOversaturated) and (href not in set(linksHistory)) and (href != settings['homepage']) and (href not in set(newLinks)) and (not re.match('.*(/help|/login|/logon|/logonform|/form|/faq|/contact|/contactus|/customerservice|/customer-service|/account|/user|/logout|/careers)', href)) and (href != f"{settings['homepage']}/") and (not href.split('#')[0] == settings['homepage']):
         return True
     else:
         return False
@@ -160,7 +155,6 @@ def getNewLinks(links, linksHistory):
     for link in links:
         try:
             href = link.get_attribute("href")
-            print(href)
         except Exception as e:
             log = f"--Error While Running Script--\n\t[Error] Encountered error while trying to get href attribute of {link}. Skipping adding link.\n\t[Python Error] {e}"
             logs.append(log)
@@ -221,6 +215,9 @@ def getUetEventsByPage():
     try:
         options = webdriver.ChromeOptions()
         options.add_argument('log-level=3')
+        # options.add_argument("--disable-extensions")
+        # options.add_experimental_option("excludeSwitches", ["enable-automation"])
+        # options.add_experimental_option('useAutomationExtension', False)
         caps = DesiredCapabilities.CHROME
         caps['goog:loggingPrefs'] = {'performance': 'ALL'}
         browser = webdriver.Chrome(desired_capabilities=caps, options=options)

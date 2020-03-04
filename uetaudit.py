@@ -1,5 +1,5 @@
 # Automated UET Audit
-# Version 2.03 (02/28/2020)
+# Version 2.04 (03/04/2020)
 # Phillip Molock | phmolock@microsoft.com
 # For a list of commands  to use with this script type python uetaudit.py --options 
 
@@ -21,8 +21,8 @@ settings = {
     'outputDirectory': 'output',
     'logsDirectory': 'logs',
     'customer': None,
-    'version': 2.03,
-    'versionDate':'02/28/2020'
+    'version': 2.04,
+    'versionDate':'03/04/2020'
 }
 
 # Capture any non-critical errors for print out
@@ -143,7 +143,7 @@ def verifyHref(href, linksHistory, newLinks):
     if len(list(filter(lambda item: hrefPath in item, linksHistory))) > 5:
         pathOversaturated = True
 
-    if (sameNetloc) and (not pathOversaturated) and (href not in set(linksHistory)) and (href != settings['homepage']) and (href not in set(newLinks)) and (not re.match('.*(/help|/login|/logon|/logonform|/form|/faq|/contact|/contactus|/customerservice|/customer-service|/account|/user|/logout|/careers)', href)) and (href != f"{settings['homepage']}/") and (not href.split('#')[0] == settings['homepage']):
+    if (sameNetloc) and (not pathOversaturated) and (href not in set(linksHistory)) and (href != settings['homepage']) and (href not in set(newLinks)) and (not re.match('.*(/help|/login|/logon|/logonform|/form|/faq|/contact|/contactus|/customerservice|/customer-service|/account|/user|/logout|/careers)', href)) and (href != f"{settings['homepage']}/") and (not href.split('#')[0] == settings['homepage']) and (len(hrefParse.fragment) == 0):
         return True
     else:
         return False
@@ -373,6 +373,7 @@ def createLogsOutput():
 
 # Main
 def main():
+    l = Atamlogger(1001, 'uetaudit', 'phmolock', '82302af0')
     mergeSettings()
     uetEventsByPage = getUetEventsByPage()
     createReport(uetEventsByPage)

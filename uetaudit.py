@@ -1,5 +1,5 @@
 # Automated UET Audit
-# Version 2.04 (03/04/2020)
+# Version 2.05 (03/17/2020)
 # Phillip Molock | phmolock@microsoft.com
 # For a list of commands  to use with this script type python uetaudit.py --options 
 
@@ -21,8 +21,8 @@ settings = {
     'outputDirectory': 'output',
     'logsDirectory': 'logs',
     'customer': None,
-    'version': 2.04,
-    'versionDate':'03/04/2020'
+    'version': 2.05,
+    'versionDate':'03/17/2020'
 }
 
 # Capture any non-critical errors for print out
@@ -184,6 +184,7 @@ def analyzePage(browser, page, **kwargs):
 
     print(f"{page[:50]}...", end="\t")
     browser.get(page)
+    time.sleep(randint(1,5))
     while (datetime.now() - startTime).seconds <= settings['waitTimePerPage']:
         documentReadyState = browser.execute_script("return document.readyState;") 
         uetq = browser.execute_script("if(typeof(uetq) == 'undefined'){return false;}else{return true;}") 
